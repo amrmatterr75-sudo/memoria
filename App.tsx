@@ -30,6 +30,8 @@ import {
   Download
 } from 'lucide-react';
 import { GoogleGenAI } from "@google/genai";
+// Ideally imported from @capacitor/app in a local Node environment
+// import { App as CapacitorApp } from '@capacitor/app';
 
 import { AppState, StudySession, Challenge, ReviewStatus, Subject, Reward } from './types';
 import { INITIAL_SUBJECTS, INITIAL_USER, DEFAULT_THEME, QUOTES } from './constants';
@@ -123,6 +125,37 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem('memoria_data_v1', JSON.stringify(state));
   }, [state]);
+
+  // Handle Hardware Back Button (Android Native)
+  useEffect(() => {
+    // This logic runs if the app is bundled with Capacitor
+    // We try to dynamically import to prevent crashing in pure web view if module missing
+    const setupNativeListeners = async () => {
+      try {
+        // @ts-ignore
+        const { App: CapacitorApp } = await import('@capacitor/app');
+        
+        CapacitorApp.addListener('backButton', ({ canGoBack }: any) => {
+          if (isAddModalOpen || isAddSubjectModalOpen || isAddChallengeOpen || submissionModal.isOpen) {
+            // Close modals if open
+            setIsAddModalOpen(false);
+            setIsAddSubjectModalOpen(false);
+            setIsAddChallengeOpen(false);
+            setSubmissionModal({isOpen: false, challengeId: null});
+          } else if (state.activeTab !== 'dashboard') {
+            // Go back to dashboard
+            setState(prev => ({ ...prev, activeTab: 'dashboard' }));
+          } else {
+            // Exit app
+            CapacitorApp.exitApp();
+          }
+        });
+      } catch (e) {
+        // Not running in native environment or package missing, ignore
+      }
+    };
+    setupNativeListeners();
+  }, [state.activeTab, isAddModalOpen]);
 
   // Online/Offline Listener
   useEffect(() => {
@@ -902,6 +935,7 @@ export default function App() {
         ${state.theme.sidebarStyle === 'solid' ? 'bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800' : ''}
         ${state.theme.sidebarStyle === 'minimal' ? 'bg-white/95 dark:bg-gray-900/95 md:bg-transparent' : ''}
         overflow-hidden
+        pt-[env(safe-area-inset-top)] /* Native safe area */
       `}>
         {state.theme.bgConfig.portraitMode && state.theme.backgroundImage && (
           <div 
@@ -986,9 +1020,9 @@ export default function App() {
         </div>
       </nav>
 
-      <main className="flex-1 h-screen overflow-y-auto relative z-10 no-scrollbar p-4 md:p-8">
+      <main className="flex-1 h-screen overflow-y-auto relative z-10 no-scrollbar p-4 md:p-8 pt-[env(safe-area-inset-top)] md:pt-8">
          <div className="max-w-7xl mx-auto h-full flex flex-col">
-            <div className="md:hidden flex justify-between items-center mb-6">
+            <div className="md:hidden flex justify-between items-center mb-6 pt-2">
               <button 
                 onClick={() => setIsSidebarOpen(true)}
                 className="p-2 rounded-lg bg-white dark:bg-gray-800 shadow-sm border border-gray-100 dark:border-gray-700"
